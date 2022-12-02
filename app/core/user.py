@@ -10,18 +10,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import get_async_session
-from app.models.user import User
+from app.models.user import UserTable
 from app.schemas.user import UserCreate
 
 JWT_TOKEN_LIFETIME = 3600
 
 
-class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
+class UserManager(IntegerIDMixin, BaseUserManager[UserTable, int]):
 
     async def validate_password(
             self,
             password: str,
-            user: Union[UserCreate, User],
+            user: Union[UserCreate, UserTable],
     ) -> None:
         if len(password) < 3:
             raise InvalidPasswordException(
@@ -34,7 +34,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, User)
+    yield SQLAlchemyUserDatabase(session, UserTable)
 
 
 bearer_transport = BearerTransport(tokenUrl='auth/jwt/login')
@@ -55,7 +55,7 @@ async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
 
 
-fastapi_users = FastAPIUsers[User, int](
+fastapi_users = FastAPIUsers[UserTable, int](
     get_user_manager,
     [auth_backend]
 )

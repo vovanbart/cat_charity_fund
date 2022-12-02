@@ -1,28 +1,27 @@
+from http import HTTPStatus
+
 from fastapi import APIRouter, HTTPException
 
 from app.core.user import auth_backend, fastapi_users
-from app.schemas.user import UserCreate, UserRead, UserUpdate
-
-USER_DELETION_ERROR = 'Удаление пользователей запрещено!'
-
+from app.services import constants as const
+from app.schemas.user import User, UserCreate
 router = APIRouter()
+
 
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix='/auth/jwt',
-    tags=['auth']
+    tags=['auth'],
 )
-
 router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
+    fastapi_users.get_register_router(User, UserCreate),
     prefix='/auth',
-    tags=['auth']
+    tags=['auth'],
 )
-
 router.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
+    fastapi_users.get_users_router(User, UserCreate),
     prefix='/users',
-    tags=['users']
+    tags=['users'],
 )
 
 
@@ -32,7 +31,8 @@ router.include_router(
     deprecated=True
 )
 def delete_user(id: str):
+    '''Не используйте удаление, деактивируйте пользователей.'''
     raise HTTPException(
-        status_code=422,
-        detail=USER_DELETION_ERROR
+        status_code=HTTPStatus.METHOD_NOT_ALLOWED,
+        detail=const.USER_DELETING_PROHIBITED
     )
