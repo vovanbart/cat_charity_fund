@@ -1,18 +1,26 @@
+from typing import List
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.donation import Donation
-from app.schemas.user import UserDB
+from app.models import Donation, User
+from app.schemas.donation import DonationCreate
 
 
-class CRUDDonation(CRUDBase):
+class CRUDDonation(
+    CRUDBase[
+        Donation,
+        DonationCreate,
+        None
+    ]
+):
 
-    async def get_by_user(
+    async def get_donations_by_user(
             self,
             session: AsyncSession,
-            user: UserDB
-    ):
+            user: User
+    ) -> List[Donation]:
         donations = await session.execute(
             select(Donation).where(
                 Donation.user_id == user.id

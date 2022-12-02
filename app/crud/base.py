@@ -1,97 +1,46 @@
-from datetime import datetime
-from typing import Optional
+from typing import Generic, List, Optional, Type, TypeVar
 
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select, asc
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.user import UserDB
+from app.core.db import Base
+from app.models import User
+
+ModelType = TypeVar('ModelType', bound=Base)
+CreateSchemaType = TypeVar('CreateSchemaType', bound=BaseModel)
+UpdateSchemaType = TypeVar('UpdateSchemaType', bound=Optional[BaseModel])
 
 
-class CRUDBase:
+class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
-    def __init__(self, model):
+    def __init__(
+        self,
+        model: Type[ModelType]
+    ):
         self.model = model
 
-    async def get(
-            self,
-            obj_id: int,
-            session: AsyncSession,
-    ):
-        '''Получение одного объекта.'''
-        db_obj = await session.execute(
-            select(self.model).where(
-                self.model.id == obj_id
-            )
-        )
-        return db_obj.scalars().first()
-
-    async def get_multi(
-            self,
-            session: AsyncSession
-    ):
-        '''Получение всех объектов в БД.'''
-        db_objs = await session.execute(select(self.model))
-        return db_objs.scalars().all()
-
-    async def get_for_separations(
+    async def get_multiple(
         self,
         session: AsyncSession
-    ):
-        '''Получение всех объектов с незакрытыми инвестициями.'''
-        objs = await session.scalars(
-            select(self.model).where(
-                self.model.fully_invested.is_(False)
-            ).order_by(
-                asc('create_date')
-            )
-        )
-        return objs.all()
+    ) -> List[ModelType]:
+        db_objects = await session.execute(select(self.model))
+        return db_objects.scalars().all()
 
-    async def create_obj_with_datetime(
+    async def create(
         self,
-        obj_in,
+        object_in,
         session: AsyncSession,
-        user: Optional[UserDB] = None,
-        create_date: bool = True
-    ):
-        '''Сохраняет запись в БД с датой создания.'''
-        obj_in_data = obj_in.dict()
+        user: Optional[User] = None
+    ) -> ModelType:
+        object_in_data = object_in.dict()
 
-        if create_date:
-            obj_in_data['create_date'] = datetime.now()
         if user is not None:
-            obj_in_data['user_id'] = user.id
-        db_obj = self.model(**obj_in_data)
-        session.add(db_obj)
-        await session.commit()
-        await session.refresh(db_obj)
-        return db_obj
+            object_in_data['user_id'] = user.id
 
-    async def update(
-            self,
-            db_obj,
-            obj_in,
-            session: AsyncSession,
-    ):
-        '''Обновление объекта в БД.'''
-        obj_data = jsonable_encoder(db_obj)
-        update_data = obj_in.dict(exclude_unset=True)
+        db_object = self.model(**object_in_data)
 
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
-        session.add(db_obj)
+        session.add(db_object)
         await session.commit()
-        await session.refresh(db_obj)
-        return db_obj
-
-    async def remove(
-            self,
-            db_obj,
-            session: AsyncSession,
-    ):
-        '''Удаление объекта из БД.'''
-        await session.delete(db_obj)
-        await session.commit()
-        return db_obj
+        await session.refresh(db_object)
+        return db_object
