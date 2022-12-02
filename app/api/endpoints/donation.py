@@ -1,38 +1,74 @@
-from fastapi import APIRouter, HTTPException
+from typing import List
 
-from app.core.user import auth_backend, fastapi_users
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
-USER_DELETION_ERROR = 'Удаление пользователей запрещено!'
+from app.core.db import get_async_session
+from app.core.user import current_superuser, current_user
+from app.crud.donation import donation_crud
+from app.models import User
+from app.schemas.donation import DonationCreate, DonationDB
+from app.services.investment import execute_investment_process
+
+EXCLUDE_FIELDS = (
+    'user_id',
+    'invested_amount',
+    'fully_invested',
+    'close_date'
+)
 
 router = APIRouter()
 
-router.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix='/auth/jwt',
-    tags=['auth']
-)
 
-router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix='/auth',
-    tags=['auth']
+@router.get(
+    '/',
+    response_model=List[DonationDB],
+    dependencies=[Depends(current_superuser)],
+    response_model_exclude_none=True
 )
-
-router.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix='/users',
-    tags=['users']
-)
+async def get_all_donations_superuser(
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Get all the donations.
+        This endpoint is available only for superuser.
+    """
+    donations = await donation_crud.get_multiple(session)
+    return donations
 
 
-@router.delete(
-    '/users/{id}',
-    tags=['users'],
-    deprecated=True
+@router.get(
+    '/my',
+    response_model=List[DonationDB],
+    response_model_exclude={*EXCLUDE_FIELDS}
 )
-def delete_user(id: str):
-    raise HTTPException(
-        status_code=422,
-        detail=USER_DELETION_ERROR
+async def get_my_donations(
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_user),
+):
+    """Get all the donations for the current user."""
+    donations = await donation_crud.get_donations_by_user(
+        session=session, user=user
     )
+    return donations
+
+
+@router.post(
+    '/',
+    response_model=DonationDB,
+    response_model_exclude={*EXCLUDE_FIELDS},
+    response_model_exclude_none=True
+)
+async def create_new_donation(
+    donation: DonationCreate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_user)
+):
+    """Create New Donation.
+        Endpoint is available for registered and super users.
+    """
+    new_donation = await donation_crud.create(
+        donation, session, user
+    )
+    await execute_investment_process(new_donation, session)
+    await session.refresh(new_donation)
+    return new_donation
