@@ -12,8 +12,7 @@ from app.core.config import settings
 from app.core.db import get_async_session
 from app.models.user import User
 from app.schemas.user import UserCreate
-
-JWT_TOKEN_LIFETIME = 3600
+from app.services.constants import JWT_TOKEN_LIFETIME, MIN_PASSWORD_LENGTH
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
@@ -23,7 +22,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             password: str,
             user: Union[UserCreate, User],
     ) -> None:
-        if len(password) < 3:
+        if len(password) < MIN_PASSWORD_LENGTH:
             raise InvalidPasswordException(
                 reason='Password should be at least 3 characters'
             )

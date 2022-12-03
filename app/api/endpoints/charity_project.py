@@ -66,7 +66,7 @@ async def create_new_charity_project(
 )
 async def partially_update_charity_project(
     project_id: int,
-    object_in: CharityProjectUpdate,
+    object_is_in: CharityProjectUpdate,
     session: AsyncSession = Depends(get_async_session),
 ):
     """Partial update of Charity Project.
@@ -76,25 +76,25 @@ async def partially_update_charity_project(
             - description;
             - full_amount (could not be less than the invested amount).
     """
-    charity_project = await check_charity_project_exists(
+    is_charity_project = await check_charity_project_exists(
         project_id, session
     )
     await check_project_was_closed(project_id, session)
 
-    if object_in.full_amount is not None:
+    if object_is_in.full_amount is not None:
         await check_correct_full_amount_for_update(
-            project_id, session, object_in.full_amount
+            project_id, session, object_is_in.full_amount
         )
 
-    if object_in.name is not None:
+    if object_is_in.name is not None:
         await check_name_duplicate(
-            object_in.name, session
+            object_is_in.name, session
         )
 
-    charity_project = await charityproject_crud.update(
-        charity_project, object_in, session
+    is_charity_project = await charityproject_crud.update(
+        is_charity_project, object_is_in, session
     )
-    return charity_project
+    return is_charity_project
 
 
 @router.delete(
