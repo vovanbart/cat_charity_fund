@@ -50,10 +50,12 @@ async def execute_investment_process(
             not_invested_obj.invested_amount += to_invest
             object_in.invested_amount += to_invest
             available_amount -= to_invest
+
             if not_invested_obj.full_amount == not_invested_obj.invested_amount:
                 await close_invested_object(not_invested_obj)
+
             if not available_amount:
                 await close_invested_object(object_in)
                 break
-            await session.commit()
+        await session.commit()
     return object_in
