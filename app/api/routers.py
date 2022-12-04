@@ -14,5 +14,5 @@ main_router.include_router(
 main_router.include_router(
     charityproject_router,
     prefix='/charity_project',
-    tags=['Charity Projects']
+    tags=('Charity Projects',)
 )
