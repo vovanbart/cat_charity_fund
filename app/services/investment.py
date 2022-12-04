@@ -41,6 +41,8 @@ async def execute_investment_process(
     not_invested_objects = await get_not_invested_objects(db_model, session)
     available_amount = object_in.full_amount
 
+    if not not_invested_obj:
+        return object_in
     for not_invested_obj in not_invested_objects:
         need_to_invest = not_invested_obj.full_amount - not_invested_obj.invested_amount
         to_invest = (
@@ -49,11 +51,10 @@ async def execute_investment_process(
         not_invested_obj.invested_amount += to_invest
         object_in.invested_amount += to_invest
         available_amount -= to_invest
-
         if not_invested_obj.full_amount == not_invested_obj.invested_amount:
             await close_invested_object(not_invested_obj)
         if not available_amount:
             await close_invested_object(object_in)
             break
         await session.commit()
-    return object_in
+    
